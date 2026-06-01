@@ -168,6 +168,26 @@ pub enum ContractError {
     /// Contracts: bond
     InvalidNonce = 208,
 
+    /// Payload domain tag does not match the expected delegated action.
+    /// Contracts: bond, delegation
+    DomainMismatch = 218,
+
+    /// Payload owner does not match the expected caller owner.
+    /// Contracts: bond, delegation
+    OwnerMismatch = 219,
+
+    /// Payload target does not match the expected action target.
+    /// Contracts: bond, delegation
+    TargetMismatch = 220,
+
+    /// Payload contract_id does not match the current contract address.
+    /// Contracts: bond, delegation
+    ContractIdMismatch = 221,
+
+    /// Signature/operation deadline has passed (now > deadline + grace).
+    /// Contracts: bond, delegation
+    SignatureExpired = 222,
+
     /// Attester stake would go negative, which is not permitted.
     /// Replaces: panic!("attester stake cannot be negative")
     /// Contracts: bond
@@ -384,6 +404,11 @@ impl ErrorExt for ContractError {
             | ContractError::WithdrawalAlreadyRequested
             | ContractError::ReentrancyDetected
             | ContractError::InvalidNonce
+            | ContractError::DomainMismatch
+            | ContractError::OwnerMismatch
+            | ContractError::TargetMismatch
+            | ContractError::ContractIdMismatch
+            | ContractError::SignatureExpired
             | ContractError::NegativeStake
             | ContractError::EarlyExitConfigNotSet
             | ContractError::InvalidPenaltyBps
@@ -456,6 +481,7 @@ impl ErrorExt for ContractError {
             ContractError::OwnerMismatch => "Payload owner does not match the expected caller owner",
             ContractError::TargetMismatch => "Payload target does not match the expected action target",
             ContractError::ContractIdMismatch => "Payload contract_id does not match the current contract address",
+            ContractError::SignatureExpired => "Signature/operation deadline has passed",
             ContractError::NegativeStake => "Attester stake cannot be negative",
             ContractError::EarlyExitConfigNotSet => {
                 "Early-exit configuration has not been set for this bond"
