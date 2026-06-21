@@ -181,7 +181,12 @@ fn test_expiry_boundary_lower_monotonic_advance_accepts_plus_1() {
     let owner = Address::generate(&e);
     let mut delegates = StdVec::new();
 
-    // Create a series of delegations with advancing ledger and valid expiry offsets
+    // Create a series of delegations with advancing ledger and valid expiry
+    // offsets. Each is created with `expires_at = now + 1`, the minimal
+    // accepted offset (lower bound is strictly `expires_at > now`), and is
+    // verified valid *at its creation time* — before the clock advances past
+    // it. (A delegation is valid only while `now < expires_at`, so an earlier
+    // delegate would already be expired once the loop advances the clock.)
     for i in 0..5 {
         let now = 1000_u64 + i as u64;
         e.ledger().with_mut(|li| li.timestamp = now);
@@ -198,14 +203,15 @@ fn test_expiry_boundary_lower_monotonic_advance_accepts_plus_1() {
         );
 
         assert_eq!(d.expires_at, expires_at);
+        // Valid now (now < expires_at).
+        assert!(client.is_valid_delegate(&owner, &delegate, &DelegationType::Attestation));
         delegates.push((delegate, expires_at));
     }
 
-    // All should still be valid at current time
+    // Stored expiry values are unchanged regardless of clock advance.
     for (delegate, expires_at) in delegates {
         let d = client.get_delegation(&owner, &delegate, &DelegationType::Attestation);
         assert_eq!(d.expires_at, expires_at);
-        assert!(client.is_valid_delegate(&owner, &delegate, &DelegationType::Attestation));
     }
 }
 
@@ -778,16 +784,17 @@ fn test_expiry_boundary_monotonic_ledger_rejection_set_stable() {
         (now.saturating_add(MAX_DELEGATION_DURATION), "exact max"),
     ];
 
-    for (idx, (expires_at, label)) in accept_cases.iter().enumerate() {
+    for (_idx, (expires_at, label)) in accept_cases.iter().enumerate() {
         let owner = Address::generate(&e);
         let delegate = Address::generate(&e);
 
+        // Each owner is freshly generated, so its monotone nonce starts at 0.
         let result = client.try_delegate(
             &owner,
             &delegate,
             &DelegationType::Attestation,
             expires_at,
-            &(idx as u64 + 100),
+            &0_u64,
         );
 
         assert!(result.is_ok(), "Expected acceptance for {}", label);

@@ -90,7 +90,7 @@ fn nonce_increments_after_delegated_delegate() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "Error(Contract, #504)")]
+#[should_panic(expected = "Error(Contract, #225)")] // DomainMismatch
 fn cross_domain_replay_delegate_payload_in_revoke() {
     let (e, client, contract_id) = setup();
     let owner = Address::generate(&e);
@@ -129,7 +129,7 @@ fn cross_domain_replay_delegate_payload_in_revoke() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "Error(Contract, #504)")]
+#[should_panic(expected = "Error(Contract, #225)")] // DomainMismatch
 fn cross_domain_replay_revoke_payload_in_delegate() {
     let (e, client, contract_id) = setup();
     let owner = Address::generate(&e);
@@ -161,7 +161,7 @@ fn cross_domain_replay_revoke_payload_in_delegate() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "Error(Contract, #504)")]
+#[should_panic(expected = "Error(Contract, #225)")] // DomainMismatch
 fn cross_domain_replay_delegate_payload_in_revoke_attestation() {
     let (e, client, contract_id) = setup();
     let attester = Address::generate(&e);
@@ -250,7 +250,7 @@ fn nonce_replay_rejected_cross_domain_stale_nonce() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "Error(Contract, #507)")]
+#[should_panic(expected = "Error(Contract, #221)")] // ContractIdMismatch
 fn cross_contract_replay_rejected() {
     let (e, client, _) = setup();
     let owner = Address::generate(&e);
@@ -282,7 +282,7 @@ fn cross_contract_replay_rejected() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "Error(Contract, #505)")]
+#[should_panic(expected = "Error(Contract, #219)")] // OwnerMismatch
 fn wrong_owner_in_payload_rejected() {
     let (e, client, contract_id) = setup();
     let real_owner = Address::generate(&e);
@@ -314,7 +314,7 @@ fn wrong_owner_in_payload_rejected() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "Error(Contract, #506)")]
+#[should_panic(expected = "Error(Contract, #220)")] // TargetMismatch
 fn wrong_target_in_payload_rejected() {
     let (e, client, contract_id) = setup();
     let owner = Address::generate(&e);
