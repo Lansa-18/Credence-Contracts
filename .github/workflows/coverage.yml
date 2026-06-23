@@ -41,7 +41,7 @@ jobs:
       - name: Coverage — credence_bond
         run: |
           cargo llvm-cov --package credence_bond \
-            --ignore-filename-regex 'contracts/credence_bond/src/fuzz/.*' \
+            --ignore-filename-regex 'contracts/credence_bond/(src/fuzz/.*|src/test_.*|src/fork_.*|src/chaos_token.rs|benches/.*)' \
             --fail-under-lines ${{ env.COVERAGE_THRESHOLD }} \
             --lcov --output-path lcov-credence_bond.info
 
