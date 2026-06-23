@@ -39,10 +39,13 @@ mod tests {
         #[test]
         fn proportional_deduction_two_source(source_a in 0i128..=1_000_000_000,
                                              source_b in 0i128..=1_000_000_000,
-                                             amount in 0i128..=1_000_000_000) {
+                                             amount in 0i128..=2_000_000_000) {
             let total = source_a + source_b;
             // Avoid division by zero inside the function.
             if total == 0 { return Ok(()); }
+            // Deduction proportional to share: if amount > total, per-source
+            // deduction can exceed the source balance, violating ded <= source.
+            proptest::prop_assume!(amount <= total);
             let e = Env::default();
             let ded_a = proportional_deduction(&e, source_a, amount, total);
             let ded_b = proportional_deduction(&e, source_b, amount, total);
