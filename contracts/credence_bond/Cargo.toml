@@ -21,12 +21,14 @@ autobins = false
 # on-chain wasm is unaffected.
 crate-type = ["cdylib", "rlib"]
 
-# Deterministic gas-regression gate. Run with `cargo bench -p credence_bond`.
+# Deterministic gas-regression gate. Run with
+# `cargo bench -p credence_bond --features gas-bench --bench cost`.
 [[bench]]
 name = "cost"
 path = "benches/cost.rs"
 harness = false
 test = false
+required-features = ["gas-bench"]
 
 # Explicit baseline refresher: `cargo run -p credence_bond --bin update-cost-baseline`.
 [[bin]]
@@ -44,3 +46,4 @@ proptest = "1.11.0"
 
 [features]
 default = []
+gas-bench = []
