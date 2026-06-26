@@ -1205,12 +1205,14 @@ mod tests {
             ContractError::DelegationNotExpired => true,    // wait for expiry then retry
 
             // Treasury: state/caller fixes; fatal cases are callback failures.
-            ContractError::AmountMustBePositive => true,
-            ContractError::ThresholdExceedsSigners => true,
-            ContractError::InsufficientTreasuryBalance => true,
-            ContractError::ProposalNotFound => true,
-            ContractError::ProposalAlreadyExecuted => true,
-            ContractError::InsufficientApprovals => true,
+            ContractError::AmountMustBePositive => true, // supply amount > 0
+            ContractError::ThresholdExceedsSigners => true, // lower threshold to <= signer count
+            ContractError::InsufficientTreasuryBalance => true, // top up
+            ContractError::ProposalNotFound => true,     // supply a valid proposal id
+            ContractError::ProposalAlreadyExecuted => true, // idempotent
+            ContractError::InsufficientApprovals => true, // collect more approvals
+            ContractError::ContractCodeVerificationFailed => false, // code hash mismatch
+            ContractError::DelegationNotExpired => false, // wait for expiry
             ContractError::InvalidFlashLoanCallback => false, // bad magic
             ContractError::FlashLoanRepaymentFailed => false, // bad repayment
             ContractError::ProposalExpired => true,

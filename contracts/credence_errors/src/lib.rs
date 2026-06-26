@@ -855,7 +855,8 @@ impl ErrorExt for ContractError {
             | ContractError::AlreadyRevoked            // idempotent
             | ContractError::DelegationExpiryTooLong   // shorten to MAX_DURATION
             | ContractError::VerifierAlreadyRegistered // idempotent
-            | ContractError::VerifierNotRegistered => true,
+            | ContractError::VerifierNotRegistered
+            | ContractError::DelegationNotExpired => true,
 
             // FATAL Delegation: caller cannot fix these.
             ContractError::UnknownScheme => false,         // scheme tag not supported by this build
