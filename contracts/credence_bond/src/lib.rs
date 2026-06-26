@@ -212,6 +212,9 @@ pub struct TierThresholds {
 
 const STORAGE_TTL_EXTEND_TO: u32 = 31_536_000;
 
+/// Maximum persistent entry TTL (~6 months at 5 s/ledger; Soroban network cap).
+pub(crate) const PERSISTENT_TTL_MAX: u32 = 3_110_400;
+
 fn bump_instance_ttl(e: &Env) {
     e.storage()
         .instance()
@@ -308,12 +311,25 @@ impl CredenceBond {
     /// let contract_id = e.register(CredenceBond, ());
     /// let client = CredenceBondClient::new(&e, &contract_id);
     /// let admin = Address::generate(&e);
-    /// client.initialize(&admin);
+    /// client.initialize(&admin, &None);
     /// ```
-    pub fn initialize(e: Env, admin: Address) {
+    pub fn initialize(e: Env, admin: Address, registry_address: Option<Address>) {
+        if e.storage().instance().has(&DataKey::Admin) {
+            panic_with_error!(&e, ContractError::AlreadyInitialized);
+        }
         // auth: tree shape identifies the admin; usually a single signature entry.
         admin.require_auth();
         e.storage().instance().set(&DataKey::Admin, &admin);
+        bump_instance_ttl(&e);
+
+        // If a registry address is provided, attempt trustless self-registration.
+        if let Some(registry) = registry_address {
+            e.invoke_contract::<()>(
+                &registry,
+                &Symbol::new(&e, "register_trustless"),
+                soroban_sdk::vec![&e, admin.into_val(&e)],
+            );
+        }
     }
 
     /// Initialize and attempt trustless self-registration with a registry.
@@ -878,7 +894,9 @@ impl CredenceBond {
 
         // Write updated ID counter and SubjectAttestations once
         e.storage().instance().set(&counter_key, &next_id);
-        e.storage().instance().set(&subject_key, &subject_attestations);
+        e.storage()
+            .instance()
+            .set(&subject_key, &subject_attestations);
 
         // Update SubjectAttestationCount
         let count_key = DataKey::SubjectAttestationCount(subject.clone());
@@ -928,6 +946,22 @@ impl CredenceBond {
             attestation_data: attestation.attestation_data.clone(),
         };
         e.storage().instance().remove(&dedup_key);
+
+        // Remove the ID from SubjectAttestations so list length stays in sync with count.
+        let subject_list_key = DataKey::SubjectAttestations(attestation.identity.clone());
+        let ids: Vec<u64> = e
+            .storage()
+            .instance()
+            .get(&subject_list_key)
+            .unwrap_or(Vec::new(&e));
+        let mut new_ids = Vec::new(&e);
+        for i in 0..ids.len() {
+            let v = ids.get(i).unwrap();
+            if v != attestation_id {
+                new_ids.push_back(v);
+            }
+        }
+        e.storage().instance().set(&subject_list_key, &new_ids);
 
         let count_key = DataKey::SubjectAttestationCount(attestation.identity.clone());
         let count: u32 = e.storage().instance().get(&count_key).unwrap_or(0);
@@ -1123,7 +1157,9 @@ impl CredenceBond {
     /// - `ContractError::Overflow` if arithmetic overflows.
     /// - `ContractError::InvariantViolation` if penalty arithmetic does not split
     ///   the gross withdrawal exactly into treasury penalty plus identity payout.
-    pub fn withdraw_early(e: Env, amount: i128) -> IdentityBond {
+    pub fn withdraw_early(e: Env, identity: Address, amount: i128) -> IdentityBond {
+        // auth: bond owner must authorize early withdrawals.
+        identity.require_auth();
         let key = DataKey::Bond;
 
         Self::acquire_lock(&e);
@@ -1338,7 +1374,6 @@ impl CredenceBond {
             token_integration::transfer_into_contract(&e, &bond.identity, amount);
         }
 
-        bond.bonded_amount = bond
         let new_bonded_amount = bond
             .bonded_amount
             .checked_add(amount)
@@ -2148,7 +2183,7 @@ mod test_early_exit_treasury_requirement {
         e.ledger().set(ledger_info);
 
         // This should panic because the early exit config (and thus treasury) is not set.
-        client.withdraw_early(&1000);
+        client.withdraw_early(&identity, &1000);
     }
 }
 
@@ -2163,9 +2198,6 @@ mod test_early_exit_precision;
 #[cfg(test)]
 mod test_early_exit_penalty;
 
-#[cfg(test)]
-mod test_helpers;
-
 /// Deliberately-divergent contract used by `test_differential` to verify the
 /// harness detects behavioural divergence.  Never shipped to mainnet.
 #[cfg(test)]
@@ -2179,3 +2211,7 @@ mod test_differential;
 
 #[cfg(test)]
 mod test_attestation_batch;
+
+/// Regression tests for storage TTL bumps (issue #570).
+#[cfg(test)]
+mod test_storage_ttl;

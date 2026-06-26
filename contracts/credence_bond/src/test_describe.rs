@@ -150,7 +150,7 @@ fn test_describe_bond_reflects_top_up() {
     let identity = Address::generate(&e);
 
     client.create_bond(&identity, &1000_i128, &3600_u64, &false, &0_u64);
-    client.top_up(&250_i128);
+    client.top_up(&identity, &250_i128);
 
     let view = client.describe_bond(&identity).unwrap();
     assert_eq!(view.bonded_amount, 1_250);

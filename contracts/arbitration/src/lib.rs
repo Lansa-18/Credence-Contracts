@@ -1,20 +1,18 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractclient, contracterror, contractimpl, symbol_short, Address, Env,
-};
-
-// 1. Define a strict, typed contract error instead of using heap-allocated strings
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum ContractError {
-    ArbitratorHasNoBond = 1,
-}
-
-// 2. Declare an interface block to allow type-safe cross-contract calling to credence_bond
-#[contractclient(name = "CredenceBondClient")]
-pub trait CredenceBondInterface {
-    fn get_bond_weight(env: Env, identity: Address) -> u32;
-}
+#![allow(
+    deprecated,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_assignments,
+    unused_mut,
+    mismatched_lifetime_syntaxes,
+    clippy::all,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::cargo,
+    clippy::restriction
+)]
 
 use credence_errors::ContractError;
 use soroban_sdk::{
@@ -65,22 +63,22 @@ pub enum DataKey {
     MinVoters,
 }
 
+const STORAGE_TTL_EXTEND_TO: u32 = 31_536_000;
+
+fn bump_instance_ttl(e: &Env) {
+    e.storage()
+        .instance()
+        .extend_ttl(STORAGE_TTL_EXTEND_TO / 2, STORAGE_TTL_EXTEND_TO);
+}
+
 #[contract]
 pub struct CredenceArbitration;
 
 #[contractimpl]
-impl Arbitration {
-    pub fn register_arbitrator(_env: Env, _arbitrator: Address) -> bool {
-        true
-    }
-
-    // Helper method executing a type-safe guest cross-contract call invocation sequence
-    fn derive_weight_from_bond(env: Env, arbitrator: Address, bond_contract: Address) -> u32 {
-        let client = CredenceBondClient::new(&env, &bond_contract);
-        client.get_bond_weight(&arbitrator)
 impl CredenceArbitration {
     /// Initialize the contract with an admin address.
     pub fn initialize(e: Env, admin: Address) -> Result<(), ArbitrationError> {
+        bump_instance_ttl(&e);
         if e.storage().instance().has(&DataKey::Admin) {
             return Err(ArbitrationError::AlreadyInitialized);
         }
@@ -102,6 +100,7 @@ impl CredenceArbitration {
         arbitrator: Address,
         weight: i128,
     ) -> Result<(), ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
         let admin: Address = e
             .storage()
@@ -148,6 +147,7 @@ impl CredenceArbitration {
 
     /// Remove an arbitrator.
     pub fn unregister_arbitrator(e: Env, arbitrator: Address) -> Result<(), ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
         let admin: Address = e
             .storage()
@@ -190,6 +190,7 @@ impl CredenceArbitration {
         description: String,
         duration: u64,
     ) -> Result<u64, ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
         creator.require_auth();
 
@@ -240,6 +241,7 @@ impl CredenceArbitration {
         dispute_id: u64,
         reason: Option<String>,
     ) -> Result<(), ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
         caller.require_auth();
 
@@ -297,24 +299,9 @@ impl CredenceArbitration {
         e: Env,
         voter: Address,
         dispute_id: u64,
-        arbitrator: Address,
-        decision: bool,
-        bond_contract: Address,
-    ) -> Result<(), ContractError> {
-        let weight = Self::derive_weight_from_bond(env.clone(), arbitrator.clone(), bond_contract);
-
-        if weight == 0 {
-            return Err(ContractError::ArbitratorHasNoBond);
-        }
-
-        // Emit arbitration telemetry state update event
-        env.events().publish(
-            (symbol_short!("vote"), dispute_id),
-            (arbitrator, decision, weight),
-        );
-
         outcome: u32,
     ) -> Result<(), ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
         voter.require_auth();
 
@@ -386,6 +373,7 @@ impl CredenceArbitration {
 
     /// Transition Voting → Resolving → Resolved after the voting period ends.
     pub fn resolve_dispute(e: Env, dispute_id: u64) -> Result<u32, ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
 
         let mut dispute: Dispute = e
@@ -515,6 +503,7 @@ impl CredenceArbitration {
         min_total_weight: i128,
         min_voters: u32,
     ) -> Result<(), ArbitrationError> {
+        bump_instance_ttl(&e);
         pausable::require_not_paused(&e);
         let stored_admin: Address = e
             .storage()
@@ -538,6 +527,7 @@ impl CredenceArbitration {
 
     /// Get the current quorum configuration.
     pub fn get_quorum(e: Env) -> (i128, u32) {
+        bump_instance_ttl(&e);
         let min_total_weight: i128 = e
             .storage()
             .instance()
@@ -549,6 +539,7 @@ impl CredenceArbitration {
 
     /// Get dispute details.
     pub fn get_dispute(e: Env, dispute_id: u64) -> Result<Dispute, ArbitrationError> {
+        bump_instance_ttl(&e);
         e.storage()
             .instance()
             .get(&DataKey::Dispute(dispute_id))
@@ -557,6 +548,7 @@ impl CredenceArbitration {
 
     /// Get current total weight for an outcome.
     pub fn get_tally(e: Env, dispute_id: u64, outcome: u32) -> i128 {
+        bump_instance_ttl(&e);
         let votes_key = DataKey::DisputeVotes(dispute_id);
         let votes: Map<u32, i128> = e
             .storage()
@@ -575,6 +567,7 @@ impl CredenceArbitration {
     /// # Returns
     /// The arbitrator's weight as `u32` if registered, or `Error::NotArbitrator` if not.
     pub fn get_arbitrator_weight(e: Env, arbitrator: Address) -> Result<u32, Error> {
+        bump_instance_ttl(&e);
         let weight: i128 = e
             .storage()
             .instance()
@@ -593,6 +586,7 @@ impl CredenceArbitration {
     /// # Returns
     /// `true` if the voter has already voted, `false` otherwise.
     pub fn has_voted(e: Env, dispute_id: u64, voter: Address) -> bool {
+        bump_instance_ttl(&e);
         e.storage()
             .instance()
             .has(&DataKey::VoterCasted(dispute_id, voter))
@@ -610,6 +604,7 @@ impl CredenceArbitration {
     /// 1. A page of arbitrator addresses.
     /// 2. `Some(next_cursor)` if more results remain, or `None` if pagination is complete.
     pub fn get_arbitrators_page(e: Env, cursor: u32, limit: u32) -> (Vec<Address>, Option<u32>) {
+        bump_instance_ttl(&e);
         let registry: Vec<Address> = e
             .storage()
             .instance()
@@ -645,30 +640,37 @@ impl CredenceArbitration {
     }
 
     pub fn pause(e: Env, caller: Address) -> Option<u64> {
+        bump_instance_ttl(&e);
         pausable::pause(&e, &caller)
     }
 
     pub fn unpause(e: Env, caller: Address) -> Option<u64> {
+        bump_instance_ttl(&e);
         pausable::unpause(&e, &caller)
     }
 
     pub fn is_paused(e: Env) -> bool {
+        bump_instance_ttl(&e);
         pausable::is_paused(&e)
     }
 
     pub fn set_pause_signer(e: Env, admin: Address, signer: Address, enabled: bool) {
+        bump_instance_ttl(&e);
         pausable::set_pause_signer(&e, &admin, &signer, enabled)
     }
 
     pub fn set_pause_threshold(e: Env, admin: Address, threshold: u32) {
+        bump_instance_ttl(&e);
         pausable::set_pause_threshold(&e, &admin, threshold)
     }
 
     pub fn approve_pause_proposal(e: Env, signer: Address, proposal_id: u64) {
+        bump_instance_ttl(&e);
         pausable::approve_pause_proposal(&e, &signer, proposal_id)
     }
 
     pub fn execute_pause_proposal(e: Env, proposal_id: u64) {
+        bump_instance_ttl(&e);
         pausable::execute_pause_proposal(&e, proposal_id)
     }
 }

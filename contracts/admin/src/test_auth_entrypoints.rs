@@ -14,7 +14,7 @@
 //! an unauthorised caller is rejected.
 
 use crate::*;
-use soroban_sdk::{testutils::Address as _, Address, Env};
+use soroban_sdk::{testutils::Address as _, testutils::Ledger as _, Address, Env};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,7 +31,13 @@ fn setup_env() -> (Env, Address, Address) {
     (env, contract_address, super_admin)
 }
 
-fn add_admin(env: &Env, contract: &Address, caller: &Address, new_admin: &Address, role: AdminRole) {
+fn add_admin(
+    env: &Env,
+    contract: &Address,
+    caller: &Address,
+    new_admin: &Address,
+    role: AdminRole,
+) {
     env.as_contract(contract, || {
         AdminContract::add_admin(env.clone(), caller.clone(), new_admin.clone(), role);
     });
@@ -59,7 +65,13 @@ fn advance(env: &Env, secs: u64) {
 fn update_admin_role_succeeds_when_super_admin_authorizes() {
     let (env, contract, super_admin) = setup_env();
     let operator = Address::generate(&env);
-    add_admin(&env, &contract, &super_admin, &operator, AdminRole::Operator);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &operator,
+        AdminRole::Operator,
+    );
 
     let info = env.as_contract(&contract, || {
         AdminContract::update_admin_role(
@@ -84,12 +96,7 @@ fn update_admin_role_rejected_when_operator_tries_to_promote() {
 
     env.as_contract(&contract, || {
         // op1 tries to give op2 a higher role — must be rejected.
-        AdminContract::update_admin_role(
-            env.clone(),
-            op1.clone(),
-            op2.clone(),
-            AdminRole::Admin,
-        );
+        AdminContract::update_admin_role(env.clone(), op1.clone(), op2.clone(), AdminRole::Admin);
     });
 }
 
@@ -161,7 +168,13 @@ fn reactivate_admin_rejected_when_caller_does_not_outrank_target() {
     let admin = Address::generate(&env);
     let operator = Address::generate(&env);
     add_admin(&env, &contract, &super_admin, &admin, AdminRole::Admin);
-    add_admin(&env, &contract, &super_admin, &operator, AdminRole::Operator);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &operator,
+        AdminRole::Operator,
+    );
 
     env.as_contract(&contract, || {
         AdminContract::deactivate_admin(env.clone(), super_admin.clone(), admin.clone());
@@ -190,8 +203,13 @@ fn suspend_admin_succeeds_when_super_admin_authorizes() {
     });
 
     // Admin should appear inactive while timestamp < until_ts.
-    let is_active = env.as_contract(&contract, || AdminContract::is_admin(env.clone(), admin.clone()));
-    assert!(!is_active, "suspended admin must not be active before expiry");
+    let is_active = env.as_contract(&contract, || {
+        AdminContract::is_admin(env.clone(), admin.clone())
+    });
+    assert!(
+        !is_active,
+        "suspended admin must not be active before expiry"
+    );
 }
 
 /// Sad path: suspension with a past timestamp must be rejected.
@@ -217,7 +235,13 @@ fn suspend_admin_rejected_when_caller_does_not_outrank_target() {
     let admin = Address::generate(&env);
     let operator = Address::generate(&env);
     add_admin(&env, &contract, &super_admin, &admin, AdminRole::Admin);
-    add_admin(&env, &contract, &super_admin, &operator, AdminRole::Operator);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &operator,
+        AdminRole::Operator,
+    );
 
     let until_ts = env.ledger().timestamp() + 3600;
     env.as_contract(&contract, || {
@@ -236,7 +260,13 @@ fn transfer_ownership_succeeds_when_owner_authorizes() {
     let (env, contract, super_admin) = setup_env();
     // Create a second SuperAdmin to transfer ownership to.
     let new_super = Address::generate(&env);
-    add_admin(&env, &contract, &super_admin, &new_super, AdminRole::SuperAdmin);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &new_super,
+        AdminRole::SuperAdmin,
+    );
 
     env.as_contract(&contract, || {
         AdminContract::transfer_ownership(env.clone(), super_admin.clone(), new_super.clone());
@@ -254,7 +284,13 @@ fn transfer_ownership_rejected_when_caller_is_not_owner() {
     let admin = Address::generate(&env);
     let new_super = Address::generate(&env);
     add_admin(&env, &contract, &super_admin, &admin, AdminRole::Admin);
-    add_admin(&env, &contract, &super_admin, &new_super, AdminRole::SuperAdmin);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &new_super,
+        AdminRole::SuperAdmin,
+    );
 
     env.as_contract(&contract, || {
         // admin is not the owner — must be rejected.
@@ -271,7 +307,13 @@ fn transfer_ownership_rejected_when_caller_is_not_owner() {
 fn accept_ownership_succeeds_when_pending_owner_authorizes() {
     let (env, contract, super_admin) = setup_env();
     let new_super = Address::generate(&env);
-    add_admin(&env, &contract, &super_admin, &new_super, AdminRole::SuperAdmin);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &new_super,
+        AdminRole::SuperAdmin,
+    );
 
     env.as_contract(&contract, || {
         AdminContract::transfer_ownership(env.clone(), super_admin.clone(), new_super.clone());
@@ -291,7 +333,13 @@ fn accept_ownership_rejected_when_caller_is_not_pending_owner() {
     let (env, contract, super_admin) = setup_env();
     let new_super = Address::generate(&env);
     let stranger = Address::generate(&env);
-    add_admin(&env, &contract, &super_admin, &new_super, AdminRole::SuperAdmin);
+    add_admin(
+        &env,
+        &contract,
+        &super_admin,
+        &new_super,
+        AdminRole::SuperAdmin,
+    );
 
     env.as_contract(&contract, || {
         AdminContract::transfer_ownership(env.clone(), super_admin.clone(), new_super.clone());

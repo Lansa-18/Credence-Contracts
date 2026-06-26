@@ -1,6 +1,4 @@
-﻿#![cfg(test)]
-
-//! Authentication boundary tests for CredenceBond.
+﻿//! Authentication boundary tests for CredenceBond.
 //!
 //! Reflects over every non-view #[contractimpl] method and asserts that:
 //!   1. The happy path succeeds when the expected address authorises the call.
@@ -46,7 +44,7 @@ fn initialize_succeeds_when_admin_authorizes() {
 #[test]
 #[should_panic]
 fn initialize_rejected_when_called_twice() {
-    let (env, admin, client) = setup();
+    let (_env, admin, client) = setup();
     // Second call must panic with AlreadyInitialized.
     client.initialize(&admin, &None);
 }
@@ -188,7 +186,7 @@ fn revoke_attestation_succeeds_when_attester_authorizes() {
 /// Happy path: admin sets the weight config.
 #[test]
 fn set_weight_config_succeeds_when_admin_authorizes() {
-    let (env, admin, client) = setup();
+    let (_env, admin, client) = setup();
     client.set_weight_config(&admin, &200_u32, &5_u32);
     let cfg = client.describe_config();
     assert_eq!(cfg.weight_multiplier_bps, 200_u32);
@@ -223,7 +221,7 @@ fn transfer_admin_succeeds_when_both_parties_authorize() {
 #[test]
 #[should_panic]
 fn transfer_admin_rejected_when_new_admin_equals_current() {
-    let (env, admin, client) = setup();
+    let (_env, admin, client) = setup();
     client.transfer_admin(&admin, &admin);
 }
 
@@ -295,7 +293,7 @@ fn top_up_rejected_when_stranger_calls() {
     let identity = Address::generate(&env);
     let stranger = Address::generate(&env);
     client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
-    client.top_up(&identity, &stranger, &500_i128);
+    client.top_up(&stranger, &500_i128);
 }
 
 // ---------------------------------------------------------------------------
@@ -320,7 +318,7 @@ fn extend_duration_rejected_when_stranger_calls() {
     let identity = Address::generate(&env);
     let stranger = Address::generate(&env);
     client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
-    client.extend_duration(&identity, &stranger, &3600_u64);
+    client.extend_duration(&stranger, &3600_u64);
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +332,8 @@ fn request_withdrawal_succeeds_when_identity_authorizes() {
     let identity = Address::generate(&env);
     // notice_period_duration = 0 for simplicity
     client.create_bond(&identity, &1000_i128, &86400_u64, &true, &0_u64);
+    // Advance past timestamp 0 so withdrawal_requested_at records a non-zero value.
+    env.ledger().with_mut(|l| l.timestamp = 1_000);
     let bond = client.request_withdrawal(&identity);
     assert!(bond.withdrawal_requested_at > 0);
 }

@@ -1211,11 +1211,12 @@ mod tests {
             ContractError::ProposalNotFound => true,     // supply a valid proposal id
             ContractError::ProposalAlreadyExecuted => true, // idempotent
             ContractError::InsufficientApprovals => true, // collect more approvals
-            ContractError::ContractCodeVerificationFailed => false, // code hash mismatch
-            ContractError::DelegationNotExpired => false, // wait for expiry
             ContractError::InvalidFlashLoanCallback => false, // bad magic
             ContractError::FlashLoanRepaymentFailed => false, // bad repayment
             ContractError::ProposalExpired => true,
+
+            // Registry pagination: caller can supply a valid cursor.
+            ContractError::CursorOutOfRange => true,
 
             // Arithmetic: code-level impossibility.
             ContractError::Overflow => false,
@@ -1312,12 +1313,13 @@ mod tests {
             ContractError::InvalidFlashLoanCallback,
             ContractError::FlashLoanRepaymentFailed,
             ContractError::ProposalExpired,
+            ContractError::CursorOutOfRange,
             ContractError::Overflow,
             ContractError::Underflow,
         ];
         assert_eq!(
             cases.len(),
-            76,
+            77,
             "Add the new variant to ALL THREE places: \
              (1) lib.rs is_recoverable() match, \
              (2) expected_is_recoverable() below, \
